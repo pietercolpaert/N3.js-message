@@ -1,0 +1,107 @@
+{
+  "name": "n3.js-messages",
+  "version": "0.1.0",
+  "description": "RDF Messages (message-delimited Turtle, TriG, N-Triples and N-Quads) for N3.js: message-aware parser, streaming parser and writer.",
+  "author": "Pieter Colpaert",
+  "license": "MIT",
+  "keywords": [
+    "rdf",
+    "rdf-messages",
+    "n3",
+    "turtle",
+    "trig",
+    "n-triples",
+    "n-quads",
+    "streaming",
+    "rdfjs"
+  ],
+  "type": "module",
+  "main": "./lib/index.js",
+  "module": "./src/index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./src/index.js",
+      "require": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "src",
+    "lib",
+    "index.d.ts"
+  ],
+  "peerDependencies": {
+    "n3": ">=2.0.0 <3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pietercolpaert/n3.js-messages.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pietercolpaert/n3.js-messages/issues"
+  },
+  "homepage": "https://github.com/pietercolpaert/n3.js-messages#readme",
+  "scripts": {
+    "build": "babel src -d lib --copy-files --no-copy-ignored && node scripts/write-lib-package.js",
+    "prepack": "npm run build",
+    "test": "jest",
+    "coverage": "jest --coverage",
+    "lint": "eslint src test spec perf scripts",
+    "test:spec": "node spec/runner.js",
+    "test:spec:earl": "node spec/runner.js --earl > spec/earl-report.ttl",
+    "test:types": "tsc -p test/types/tsconfig.json",
+    "test:package": "node scripts/test-package.js",
+    "perf": "node perf/run.js",
+    "perf:compare": "node perf/compare.js",
+    "spec:update": "node scripts/update-spec.js"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.29.7",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@types/n3": "^1.26.4",
+    "@types/node": "^26.6.4",
+    "babel-jest": "^30.5.2",
+    "eslint": "^10.12.0",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-jest": "^29.16.6",
+    "globals": "^17.13.0",
+    "jest": "^30.5.2",
+    "n3": "^2.10.6",
+    "rdf-isomorphic": "^2.0.1",
+    "rdf-parser-ts": "^0.4.0",
+    "rdf-writer-ts": "^0.2.1",
+    "typescript": "^6.0.3"
+  },
+  "jest": {
+    "testMatch": [
+      "**/test/**/*-test.js"
+    ],
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ],
+    "coverageReporters": [
+      "json-summary",
+      "text",
+      "lcov"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
+      }
+    }
+  },
+  "dependencies": {
+    "@rdfjs/types": "^2.0.1"
+  }
+}

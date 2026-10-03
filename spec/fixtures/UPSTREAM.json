@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/w3c-cg/rsp",
+  "commit": "9c3b947992c36c4661923e06e06fc9bfde67db3f",
+  "commitDate": "2026-09-25T16:03:17+02:00",
+  "files": {
+    "spec/messages-tests.bs": "2fa793b015ef126fd395fae5b2919aef440e4b6b5049d305d4f16ab093c10969",
+    "spec/messages.bs": "bcbe0b1144bd650b6795bd5f21bee814e657f8d0474ddc2dfd14451a6a662a5e"
+  },
+  "publishedAs": "https://w3c-cg.github.io/rsp/spec/messages-tests",
+  "license": "W3C 3-clause BSD License (test suites); see LICENSE-UPSTREAM.md"
+}

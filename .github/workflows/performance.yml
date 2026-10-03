@@ -1,0 +1,68 @@
+name: Performance
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, Mondays 04:17 UTC
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Pull requests: a smoke run with small inputs. Shared CI runners are noisy and the
+  # inputs are small (JIT warm-up dominates), so this job only reports and never blocks a
+  # merge (`continue-on-error`). Make it blocking once the guardrails have proven stable on PRs.
+  smoke:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run the benchmarks (smoke)
+        run: PERF_QUICK=1 npm run perf
+      - name: Check the ratio guardrails
+        run: npm run perf:compare
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: perf-results-smoke
+          path: .perf-results/
+          if-no-files-found: warn
+
+  # Pushes to main, the weekly schedule and manual runs: the full suite.
+  # The ratio guardrails block (they compare benchmarks within one run, so they do not
+  # depend on the speed of the runner). Slowdowns against perf/baseline.json only warn,
+  # as the baseline was recorded on a different machine.
+  full:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run the benchmarks
+        run: npm run perf
+      - name: Check the ratio guardrails
+        run: npm run perf:compare
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: perf-results
+          path: .perf-results/
+          if-no-files-found: warn

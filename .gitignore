@@ -1,0 +1,7 @@
+node_modules/
+lib/
+coverage/
+*.tgz
+.perf-results/
+spec/earl-report.ttl
+scratch/

@@ -1,0 +1,165 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, Mondays 03:41 UTC: early warning for changes in N3.js main
+    - cron: '41 3 * * 1'
+  workflow_dispatch:
+
+# Least-privilege default for GITHUB_TOKEN. No job needs more, and no job needs secrets,
+# so the workflow runs unchanged on pull requests from forks.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, tests and coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      # `npm test` runs jest with coverage and fails below the 100% thresholds of package.json
+      - run: npm test
+      - run: npm run test:types
+      # LCOV and the JSON summary are kept for coverage services (add a Codecov/Coveralls
+      # step here; they need no secret for public repositories)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            coverage/lcov.info
+            coverage/coverage-summary.json
+          retention-days: 14
+
+  node:
+    name: Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The minimum of `engines`, the active LTS lines, and the latest release
+        node-version: [18.x, 20.x, 22.x, 24.x]
+        include:
+          - node-version: latest
+            experimental: true
+    continue-on-error: ${{ matrix.experimental == true }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npx jest --coverage=false
+      - run: npm run test:spec
+
+  compliance:
+    name: RDF Messages compliance suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm run test:spec
+      - run: npm run test:spec:earl
+      - uses: actions/upload-artifact@v7
+        with:
+          name: earl-report
+          path: spec/earl-report.ttl
+          retention-days: 14
+
+  n3-compatibility:
+    name: n3 ${{ matrix.n3 }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The minimum supported version of the peer dependency, and the latest release
+        n3: ['2.0.0', 'latest']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save n3@${{ matrix.n3 }}
+      - run: node -p "'n3 ' + require('n3/package.json').version"
+      - run: npx jest --coverage=false
+      - run: npm run test:spec
+
+  n3-main:
+    # Early warning for changes in N3.js: allowed to fail, and only on schedule or on demand
+    name: n3 main (allowed to fail)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save github:rdfjs/N3.js
+      - run: npx jest --coverage=false
+      - run: npm run test:spec
+
+  package:
+    name: Packed tarball in a clean project (n3 ${{ matrix.n3 }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        n3: ['2.0.0', 'latest']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm pack --dry-run
+      - run: npm run test:package
+        env:
+          N3_VERSION: ${{ matrix.n3 }}
+
+  audit:
+    name: Audit of production dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+      - run: npm audit --omit=dev --audit-level=moderate
+
+  summary:
+    # A single check for branch protection
+    if: always()
+    needs: [quality, node, compliance, n3-compatibility, package, audit]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Fail if a required job did not succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "job results: $RESULTS"
+          case " $RESULTS " in *" failure "*|*" cancelled "*) exit 1;; esac

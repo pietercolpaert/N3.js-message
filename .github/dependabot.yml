@@ -1,0 +1,17 @@
+version: 2
+
+# Dependabot proposes updates, which are reviewed and merged by hand (no auto-merge).
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      minor:
+        update-types:
+          - "minor"
+          - "patch"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
