@@ -1,5 +1,10 @@
 # n3.js-messages
 
+[![CI](https://github.com/pietercolpaert/n3.js-messages/actions/workflows/ci.yml/badge.svg)](https://github.com/pietercolpaert/n3.js-messages/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/pietercolpaert/n3.js-messages/badge.svg?branch=main)](https://coveralls.io/github/pietercolpaert/n3.js-messages?branch=main)
+[![npm version](https://img.shields.io/npm/v/n3.js-messages.svg)](https://www.npmjs.com/package/n3.js-messages)
+[![license](https://img.shields.io/npm/l/n3.js-messages.svg)](https://github.com/pietercolpaert/n3.js-messages/blob/main/LICENSE)
+
 [RDF Messages](https://w3c-cg.github.io/rsp/spec/messages) for [N3.js](https://github.com/rdfjs/N3.js):
 parse, stream and write message-delimited **Turtle, TriG, N-Triples and N-Quads**, with ordinary RDF/JS `Quad` objects.
 

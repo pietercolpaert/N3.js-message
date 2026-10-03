@@ -34,8 +34,9 @@ jobs:
       # `npm test` runs jest with coverage and fails below the 100% thresholds of package.json
       - run: npm test
       - run: npm run test:types
-      # LCOV and the JSON summary are kept for coverage services (add a Codecov/Coveralls
-      # step here; they need no secret for public repositories)
+      # LCOV and the JSON summary are kept as artifact, and sent to Coveralls for the badge.
+      # Coveralls uses the built-in GITHUB_TOKEN (no secret to configure), and a failing upload
+      # (for example while the repository is not yet enabled on coveralls.io) does not fail CI.
       - uses: actions/upload-artifact@v7
         with:
           name: coverage
@@ -43,6 +44,11 @@ jobs:
             coverage/lcov.info
             coverage/coverage-summary.json
           retention-days: 14
+      - uses: coverallsapp/github-action@v2
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: coverage/lcov.info
 
   node:
     name: Node ${{ matrix.node-version }}
