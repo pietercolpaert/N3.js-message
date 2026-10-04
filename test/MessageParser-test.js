@@ -436,9 +436,9 @@ describe('MessageParser', () => {
     });
 
     it('rejects a delimiter inside a graph block', () => {
-      fails(`${V}<http://example.org/g> {\n${T(1, 1)}MESSAGE\n${T(2, 2)}}`, 'TriG', /Unexpected "MESSAGE" on line 4/);
+      fails(`${V}<http://example.org/g> {\n${T(1, 1)}MESSAGE\n${T(2, 2)}}`, 'TriG', /Expected entity but got MESSAGE on line 4/);
       fails(`${V}<http://example.org/g> {\n${T(1, 1)}@message .\n}`, 'TriG', /@message/);
-      fails(`${V}<http://example.org/g> { ${T(1, 1)} MESSAGE }`, 'TriG', /Unexpected "MESSAGE"/);
+      fails(`${V}<http://example.org/g> { ${T(1, 1)} MESSAGE }`, 'TriG', /Expected entity but got MESSAGE/);
     });
 
     it('rejects a delimiter inside a statement', () => {
@@ -450,6 +450,18 @@ describe('MessageParser', () => {
       fails(`${V}<http://example.org/s> <http://example.org/p> << <http://example.org/s> MESSAGE >> .`, 'Turtle', /./);
     });
 
+    it('accepts SPARQL-style delimiters in any case in Turtle and TriG, like PREFIX, BASE and VERSION', () => {
+      for (const format of ['Turtle', 'TriG'])
+        expect(render(parseMessages(`${V}${T(1, 1)}message\n${T(2, 2)}Message\n`, { format }))).toEqual([[R(1, 1)], [R(2, 2)]]);
+    });
+
+    it('rejects a single-quoted or lowercase version announcement in line formats', () => {
+      for (const format of ['N-Triples', 'N-Quads']) {
+        fails(`VERSION '1.2-messages'\n${T(1, 1)}`, format, /Unexpected "'1.2-messages'" on line 1/);
+        fails(`version "1.2-messages"\n${T(1, 1)}`, format, /Unexpected "version" on line 1/);
+      }
+    });
+
     it('rejects a delimiter with trailing content in line formats', () => {
       fails(`${V}MESSAGE <http://example.org/s> <http://example.org/p> <http://example.org/o> .`, 'N-Triples', /Unexpected "MESSAGE"/);
       fails(`${V}${T(1, 1).trim()} MESSAGE\n`, 'N-Triples', /Unexpected/);
@@ -458,8 +470,6 @@ describe('MessageParser', () => {
 
     it('rejects a misspelled or lowercase delimiter', () => {
       fails(`${V}${T(1, 1)}MESSAG\n`, 'Turtle', /Unexpected/);
-      fails(`${V}${T(1, 1)}message\n`, 'Turtle', /Unexpected/);
-      fails(`${V}${T(1, 1)}Message\n`, 'N-Quads', /Unexpected/);
       fails(`${V}${T(1, 1)}@Message .\n`, 'Turtle', /Expected entity but got @Message/);
       fails(`${V}${T(1, 1)}MESSAGES\n`, 'N-Quads', /Unexpected/);
     });

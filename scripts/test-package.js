@@ -1,7 +1,7 @@
 // Packs the package and checks it in a clean consumer project (ESM, CommonJS and TypeScript).
 //
 //   npm run test:package
-//   N3_VERSION=2.0.0 npm run test:package
+//   N3_VERSION=2.13.7 npm run test:package
 //
 // Needs network access to the npm registry.
 import { execFileSync } from 'node:child_process';
