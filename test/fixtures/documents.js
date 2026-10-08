@@ -85,7 +85,7 @@ export default [
   {
     name: 'N-Quads with graphs',
     format: 'N-Quads',
-    input: `VERSION '1.2-messages'\n${s(1)} ${P} ${o(1)} <http://example.org/g> .\nMESSAGE\nMESSAGE\n${s(2)} ${P} ${o(2)} <http://example.org/g> .\nMESSAGE`,
+    input: `VERSION "1.2-messages"\n${s(1)} ${P} ${o(1)} <http://example.org/g> .\nMESSAGE\nMESSAGE\n${s(2)} ${P} ${o(2)} <http://example.org/g> .\nMESSAGE`,
     expected: [[`${s(1)} ${P} ${o(1)} <http://example.org/g>`], [], [`${s(2)} ${P} ${o(2)} <http://example.org/g>`]],
   },
   {

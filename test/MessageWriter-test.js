@@ -46,24 +46,29 @@ describe('MessageWriter', () => {
 
     it('writes Turtle with the old-style version directive and delimiter', () => {
       expect(writeMessages([[q1(1)], [q1(2)]], { format: 'Turtle', prefixes: { ex: 'http://example.org/' } })).toBe(
-        '@version "1.2-messages" .\n@prefix ex: <http://example.org/>.\n\nex:s1 ex:p ex:o1.\n@message .\nex:s2 ex:p ex:o2.\n@message .\n');
+        '@version "1.2-messages".\n@prefix ex: <http://example.org/>.\n\nex:s1 ex:p ex:o1.\n@message .\nex:s2 ex:p ex:o2.\n@message .\n');
     });
 
     it('writes TriG graph blocks per message', () => {
       expect(writeMessages([[q1(1, g)], [q1(2, g), q1(3)]], { format: 'TriG', prefixes: { ex: 'http://example.org/' } })).toBe(
-        '@version "1.2-messages" .\n@prefix ex: <http://example.org/>.\n\n' +
+        '@version "1.2-messages".\n@prefix ex: <http://example.org/>.\n\n' +
         'ex:g {\nex:s1 ex:p ex:o1\n}\n@message .\n' +
         'ex:g {\nex:s2 ex:p ex:o2\n}\nex:s3 ex:p ex:o3.\n@message .\n');
     });
 
     it('writes an empty log as just the announcement', () => {
       expect(writeMessages([], { format: 'N-Quads' })).toBe('VERSION "1.2-messages"\n');
-      expect(writeMessages([], { format: 'TriG' })).toBe('@version "1.2-messages" .\n');
+      expect(writeMessages([], { format: 'TriG' })).toBe('@version "1.2-messages".\n');
+    });
+
+    it('declares prefixes and the base after the announcement, also in a log without messages', () => {
+      expect(writeMessages([], { format: 'Turtle', prefixes: { ex: 'http://example.org/' }, baseIRI: 'http://example.org/', writeBase: true }))
+        .toBe('@version "1.2-messages".\n@base <http://example.org/>.\n@prefix ex: <http://example.org/>.\n\n');
     });
 
     it('supports the other messages version labels', () => {
       expect(writeMessages([], { format: 'N-Quads', version: '1.1-messages' })).toBe('VERSION "1.1-messages"\n');
-      expect(writeMessages([], { format: 'TriG', version: '1.2-basic-messages' })).toBe('@version "1.2-basic-messages" .\n');
+      expect(writeMessages([], { format: 'TriG', version: '1.2-basic-messages' })).toBe('@version "1.2-basic-messages".\n');
     });
 
     it('rejects versions that do not announce messages or are unsupported', () => {
@@ -248,7 +253,7 @@ describe('MessageWriter', () => {
       const writer = new MessageWriter();
       await writer.addMessage();
       await writer.addMessage([q1(1, g)]);
-      expect(await writer.end()).toBe('@version "1.2-messages" .\n@message .\n' +
+      expect(await writer.end()).toBe('@version "1.2-messages".\n@message .\n' +
         '<http://example.org/g> {\n<http://example.org/s1> <http://example.org/p> <http://example.org/o1>\n}\n@message .\n');
     });
 
@@ -257,7 +262,7 @@ describe('MessageWriter', () => {
       const writer = new MessageWriter(stream);
       await writer.addMessage([q1(1)]);
       await writer.end();
-      expect(stream.chunks.join('')).toMatch(/^@version "1.2-messages" \.\n/);
+      expect(stream.chunks.join('')).toMatch(/^@version "1.2-messages"\.\n/);
     });
   });
 

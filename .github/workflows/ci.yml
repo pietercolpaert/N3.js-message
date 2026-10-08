@@ -97,7 +97,7 @@ jobs:
       fail-fast: false
       matrix:
         # The minimum supported version of the peer dependency, and the latest release
-        n3: ['2.0.0', 'latest']
+        n3: ['2.13.7', 'latest']
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -133,7 +133,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        n3: ['2.0.0', 'latest']
+        n3: ['2.13.7', 'latest']
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

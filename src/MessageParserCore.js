@@ -1,15 +1,9 @@
 // **MessageParserCore** is the push-based engine behind all message parsers.
-// It feeds scanned text to the public N3.js parser and groups the resulting
-// quads into messages.
+// It feeds text to the N3.js parser, which recognizes the message delimiters
+// through its `directives` option, and groups the resulting quads into messages.
 import { EventEmitter } from 'events';
 import { Parser, DataFactory } from 'n3';
-import { TurtleScanner, LineScanner } from './MessageScanner.js';
 import { resolveFormat, isMessagesVersion, baseVersion, isSupportedVersion } from './formats.js';
-
-// Unrecognizable by construction: a document cannot contain it by accident
-function createSentinel() {
-  return `rdf-messages-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
-}
 
 export default class MessageParserCore {
   // `sink` receives `message(quads, index)`, `end(prefixes)`, `error(error)`
@@ -36,6 +30,9 @@ export default class MessageParserCore {
       factory: this._factory,
       // Version labels are validated here, because N3.js does not know `-messages` labels
       parseUnsupportedVersions: true,
+      // N3.js reports `MESSAGE` and `@message .` between statements through `onDirective`,
+      // in order with the quads, and rejects them anywhere else
+      directives: ['message'],
     };
     if (options.baseIRI)
       n3Options.baseIRI = options.baseIRI;
@@ -44,37 +41,41 @@ export default class MessageParserCore {
       n3Options.version = baseVersion(options.version);
     }
 
-    const sentinel = createSentinel();
-    this._sentinel = sentinel;
-    this._scanner = format.lineMode ? new LineScanner(sentinel) : new TurtleScanner(sentinel);
     this._input = new EventEmitter();
-    const callbacks = {
+    this._lineMode = format.lineMode;
+    // The line of the current token, and of the last delimiter
+    this._line = 0;
+    this._delimiterLine = 0;
+    new Parser(n3Options).parse(this._input, {
       onQuad: (error, quad, prefixes) => this._onQuad(error, quad, prefixes),
       onPrefix: (prefix, term) => this._failed || sink.prefix && sink.prefix(prefix, term),
-      onVersion: label => this._onVersion(label),
-    };
-    if (format.lineMode)
-      callbacks.onComment = comment => this._onComment(comment);
-    new Parser(n3Options).parse(this._input, callbacks);
+      onVersion: label => this._failed || this._announce(label),
+      onDirective: () => this._failed || this._delimiter(),
+      onToken: token => this._onToken(token),
+    });
   }
 
   // ### `write` accepts the next chunk of text
   write(text) {
     if (!this._failed && !this._finished && text.length > 0)
-      this._feed(this._scanner.push(text));
+      this._input.emit('data', text);
   }
 
   // ### `end` signals the end of the input
   end() {
-    if (!this._failed && !this._finished) {
-      this._feed(this._scanner.end());
+    if (!this._failed && !this._finished)
       this._input.emit('end');
-    }
   }
 
-  _feed(text) {
-    if (text.length > 0)
-      this._input.emit('data', text);
+  // Keeps track of lines; in N-Triples and N-Quads, a delimiter must be on its own line
+  _onToken(token) {
+    const line = token.line, delimiter = token.type === 'MESSAGE';
+    if (this._lineMode && !this._failed &&
+        (delimiter ? line === this._line : line === this._delimiterLine && token.type !== 'eof'))
+      this._fail(new Error(`Unexpected "MESSAGE" on line ${line}.`));
+    if (delimiter)
+      this._delimiterLine = line;
+    this._line = line;
   }
 
   _onQuad(error, quad, prefixes) {
@@ -104,26 +105,6 @@ export default class MessageParserCore {
       this._sink.quad(quad, this._index);
   }
 
-  _onVersion(label) {
-    if (this._failed)
-      return;
-    if (label === this._sentinel)
-      this._delimiter(this._scanner.delimiterLines.shift());
-    else
-      this._announce(label);
-  }
-
-  // Line mode reports delimiters and versions as comments
-  _onComment(comment) {
-    if (this._failed || !comment.startsWith(this._sentinel))
-      return;
-    const rest = comment.substring(this._sentinel.length);
-    if (rest[0] === 'M')
-      this._delimiter(Number(rest.substring(1)));
-    else
-      this._announce(rest.substring(1));
-  }
-
   _announce(label) {
     const error = this._checkVersion(label);
     if (error)
@@ -147,9 +128,9 @@ export default class MessageParserCore {
     return error;
   }
 
-  _delimiter(line) {
+  _delimiter() {
     if (!this._messages) {
-      return this._fail(new Error(`Unexpected "MESSAGE" on line ${line}: the document did not announce ` +
+      return this._fail(new Error(`Unexpected "MESSAGE" on line ${this._line}: the document did not announce ` +
                                   'a version with the "-messages" suffix.'));
     }
     this._emitMessage();

@@ -1,12 +1,21 @@
 // **MessageWriter** writes RDF Message Logs (Turtle, TriG, N-Triples and N-Quads).
 //
-// Every message is written by a fresh N3.js writer, so no serialization state
-// (current graph, subject, predicate) leaks from one message into the next.
-// Every message is followed by a delimiter (`MESSAGE` in line formats, `@message .` in Turtle and TriG), so that consumers receive
-// a message as soon as it is written, and so that trailing empty messages survive
-// a round trip (a delimiter before the end of the input does not create a message).
+// One N3.js writer writes the whole log: its `version` option announces the log,
+// and after each message, `_endStatement` finishes the pending statement (and graph block)
+// before a delimiter is written (`MESSAGE` in line formats, `@message .` in Turtle and TriG).
+// That way, consumers receive a message as soon as it is written, no serialization state
+// (current graph, subject, predicate) leaks from one message into the next, and trailing
+// empty messages survive a round trip (a delimiter before the end of the input does not create a message).
 import { Writer } from 'n3';
 import { resolveFormat, isMessagesVersion, baseVersion, isSupportedVersion } from './formats.js';
+
+class LogWriter extends Writer {
+  // ### `addDelimiter` ends the current message
+  addDelimiter() {
+    this._endStatement();
+    this._write(this._lineMode ? 'MESSAGE\n' : '@message .\n');
+  }
+}
 
 export default class MessageWriter {
   // `outputStream` is optional: without it, `end` returns the output as a string
@@ -26,13 +35,13 @@ export default class MessageWriter {
     this._pending = 0;
     this._waiting = [];
     this._error = null;
-    this._muted = false;
     this._started = false;
     this._ended = false;
     this._declared = Object.assign({}, options.prefixes);
     this._newPrefixes = {};
-    // The N3.js writers write to this sink, which they never end
+    // The N3.js writer writes to this sink, which it never ends
     this._sink = { write: (chunk, encoding, done) => this._write(chunk, done) };
+    this._writer = null;
   }
 
   // ### `addMessage` writes the quads of one message, followed by a delimiter.
@@ -117,9 +126,8 @@ export default class MessageWriter {
   }
 
   _write(chunk, done) {
-    if (this._muted || !this._stream) {
-      if (!this._muted)
-        this._output += chunk;
+    if (!this._stream) {
+      this._output += chunk;
       return done && done();
     }
     this._pending++;
@@ -140,29 +148,25 @@ export default class MessageWriter {
       this._waiting.splice(0).forEach(callback => this._settle(callback));
   }
 
-  // Announces the RDF Messages version, which makes parsers expect delimiters
+  // Announces the RDF Messages version, which makes parsers expect delimiters,
+  // and declares the base and prefixes, which stay in effect for all messages
   _start() {
     if (!this._started) {
       this._started = true;
-      this._write(this._format.lineMode ? `VERSION "${this._version}"\n` : `@version "${this._version}" .\n`);
+      const options = this._options;
+      this._writer = new LogWriter(this._sink, {
+        format: this._format.name,
+        end: false,
+        version: this._version,
+        baseIRI: options.baseIRI,
+        writeBase: options.writeBase,
+        prefixes: this._declared,
+      });
     }
   }
 
   _writeMessage(quads) {
-    const first = !this._messageWritten;
-    const options = { format: this._format.name, end: false };
-    if (this._options.baseIRI) {
-      options.baseIRI = this._options.baseIRI;
-      // The base is declared by us, once, as it stays in effect (and older N3.js writers lack `writeBase`)
-      if (first && this._options.writeBase && !this._format.lineMode)
-        this._write(`@base <${this._options.baseIRI}>.\n`);
-    }
-    // Prefixes and base are declared once, as they stay in effect
-    options.prefixes = this._declared;
-    this._muted = !first;
-    const writer = new Writer(this._sink, options);
-    this._muted = false;
-    this._messageWritten = true;
+    const writer = this._writer;
     for (const prefix of Object.keys(this._newPrefixes)) {
       writer.addPrefix(prefix, this._newPrefixes[prefix]);
       this._declared[prefix] = this._newPrefixes[prefix];
@@ -171,8 +175,7 @@ export default class MessageWriter {
     const record = error => error && (this._error = this._error || error);
     for (const quad of quads)
       writer.addQuad(quad.subject, quad.predicate, quad.object, quad.graph, record);
-    writer.end(record);
-    this._write(this._format.lineMode ? 'MESSAGE\n' : '@message .\n');
+    writer.addDelimiter();
   }
 }
 

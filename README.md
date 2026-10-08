@@ -27,7 +27,7 @@ it is **not a W3C Recommendation**, and may still change. This package implement
 npm install n3 n3.js-messages
 ```
 
-Requires Node.js ≥ 18 and `n3` ≥ 2.0.0 < 3. The package works with `import` and `require`, and ships TypeScript declarations.
+Requires Node.js ≥ 18 and `n3` ≥ 2.13.7 < 3. The package works with `import` and `require`, and ships TypeScript declarations.
 
 ## Parsing
 
@@ -103,7 +103,7 @@ await writer.end();
 const text = writeMessages(messages, { format: 'N-Quads' });  // synchronous, returns a string
 ```
 
-- Writes `VERSION "1.2-messages"` (`@version "1.2-messages" .` in Turtle/TriG) first, and a delimiter after each message:
+- Writes `VERSION "1.2-messages"` (`@version "1.2-messages".` in Turtle/TriG) first, and a delimiter after each message:
   `MESSAGE` in N-Triples and N-Quads, `@message .` in Turtle and TriG. A parser gets a message when it is written, and a trailing empty
   message survives a round trip.
 - Each message starts from a clean serializer state, so consecutive messages in the same named graph are valid. Prefixes (and `baseIRI` with
@@ -141,17 +141,20 @@ The 12 skipped cases do not apply to RDF syntax parsers and serializers: 7 test 
 Jelly gRPC), and 5 are about NDJSON-LD, a different serialization. The run prints each skipped case with its reason.
 `npm run test:spec:earl` writes an EARL report.
 
-Beyond the suite there are 334 unit, regression, property and differential tests (100% statement, branch, function and line coverage),
+Beyond the suite there are 312 unit, regression, property and differential tests (100% statement, branch, function and line coverage),
 including every possible two-chunk split of the fixtures, deterministic randomized chunking, per-byte streaming, and the regressions of
 the review of N3.js [pull request 586](https://github.com/rdfjs/N3.js/pull/586), which proposed this feature for N3.js itself.
 
 ## Relationship to N3.js
 
-- `n3` is a **peer dependency** (`>=2.0.0 <3`), so that an application has one N3.js installation. It is tested against n3 2.0.0 (minimum) and
+- `n3` is a **peer dependency** (`>=2.13.7 <3`), so that an application has one N3.js installation. It is tested against n3 2.13.7 (minimum) and
   the latest 2.x, and against N3.js `main` in a scheduled, non-blocking job.
 - This is not a fork. The N3.js maintainers asked for RDF Messages to live in a separate package until the specification matures
   (they proposed it in the discussion of pull request 586, which first added the feature to N3.js itself); this package is that package.
-  Where N3.js lacks a hook, [IMPLEMENTATION-NOTES.md](IMPLEMENTATION-NOTES.md) says which, and how it is bridged with public API only.
+- N3.js parses the delimiters itself: the parser is created with `directives: ['message']`, and reports `MESSAGE` and `@message .`
+  through `onDirective`, in order with the quads. The writer is a small subclass of `N3.Writer` that announces the log with the
+  `version` option and ends every message with `_endStatement()` before it writes the delimiter.
+  Blank node scoping per message is done by this package.
 
 ## Performance
 
@@ -190,11 +193,11 @@ through both (`npm run perf`, then `npm run perf:compare`). Throughput in quads 
 | Write 10k messages, N-Quads | 1,177k | 1,540k | 0.76× |
 | Write 10k messages, TriG | 1,039k | 1,374k | 0.76× |
 
-- **Streaming is where this package is ahead**: 1.15× to 1.8×, most for tiny chunks. Our scanner and the N3.js lexer work incrementally; by its
+- **Streaming is where this package is ahead**: 1.15× to 1.8×, most for tiny chunks. The N3.js lexer works incrementally; by its
   documentation, rdf-parser-ts runs its parser over every complete statement prefix of the buffered input. I did not profile it to confirm the cause.
 - **Parsing a whole string is faster with rdf-parser-ts** (0.85× to 0.91× for many messages or large ones, parity for one message): `parseMessages` is
-  N3.js plus a scanner, so it is bounded by the speed of N3.js, which rdf-parser-ts also beats on ordinary documents (by 1.2×).
-- **Writing**: on par for one large message; rdf-writer-ts is faster for many small messages (0.76×), since this package creates an N3.js writer per message.
+  N3.js with an extra directive, so it is bounded by the speed of N3.js, which rdf-parser-ts also beats on ordinary documents (by 1.2×).
+- **Writing**: on par for one large message; rdf-writer-ts is faster for many small messages (0.76×; measured before this package moved to one N3.js writer for the whole log).
 - **Memory**: both stay flat while streaming 100k messages (17 MB): the heap grows by 0.12 MB here and
   0.08 MB with rdf-parser-ts.
 

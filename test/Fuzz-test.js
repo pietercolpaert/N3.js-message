@@ -67,7 +67,7 @@ function generate(seed) {
   return {
     format,
     messages,
-    announce: random() < 0.5 ? 'VERSION "1.2-messages"' : lineMode ? 'VERSION \'1.1-messages\'' : '@version "1.2-basic-messages" .',
+    announce: random() < 0.5 ? 'VERSION "1.2-messages"' : lineMode ? 'VERSION "1.1-messages"' : '@version "1.2-basic-messages" .',
     crlf: random() < 0.3,
     space: pick(random, SPACES),
     trailing: random() < 0.5,
