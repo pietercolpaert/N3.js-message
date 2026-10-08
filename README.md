@@ -164,11 +164,11 @@ ratio-based guardrails against each other and compares with `perf/baseline.json`
 
 | | plain N3.js | n3.js-messages |
 | --- | --- | --- |
-| parse 100k quads, one message | 688k | 719k (`parseMessages`), 784k (stream, 64 KiB chunks) |
-| parse 10k messages × 5 quads | – | 588k (`parseMessages`), 813k (stream) |
-| stream, 16-byte chunks (10k quads) | – | 464k |
-| write 100k quads in one message (N-Quads) | – | 1.79M |
-| write 10k messages (N-Quads) | – | 1.18M (235k messages/s) |
+| parse 100k quads, one message | 649k | 691k (`parseMessages`), 735k (stream, 64 KiB chunks) |
+| parse 10k messages × 5 quads | – | 564k (`parseMessages`), 655k (stream) |
+| stream, 16-byte chunks (10k quads) | – | 324k |
+| write 100k quads in one message (N-Quads) | – | 1.34M |
+| write 10k messages (N-Quads) | – | 1.10M (221k messages/s) |
 
 Streaming 100k messages (17 MB) through `MessageStreamParser` grows the heap by 0.12 MB (after gc).
 
@@ -181,29 +181,30 @@ through both (`npm run perf`, then `npm run perf:compare`). Throughput in quads 
 
 | Workload | n3.js-messages | rdf-parser-ts / rdf-writer-ts | Speed of n3.js-messages |
 | --- | --- | --- | --- |
-| Parse a string, one message, 100k quads | 719k | 696k | 1.03× |
-| Parse a string, 10k messages × 5 quads | 588k | 691k | 0.85× |
-| Parse a string, 10 messages × 10k quads | 680k | 745k | 0.91× |
-| Stream, 64 KiB chunks, 100k quads | 784k | 680k | 1.15× |
-| Stream, 64 KiB chunks, 10k messages | 813k | 549k | 1.48× |
-| Stream, 16-byte chunks, 10k quads | 464k | 254k | 1.83× |
-| Stream, 1-character chunks, 1k quads | 117k | 76k | 1.53× |
-| Write one message, 100k quads, N-Quads | 1,793k | 1,678k | 1.07× |
-| Write one message, 100k quads, TriG | 1,667k | 1,636k | 1.02× |
-| Write 10k messages, N-Quads | 1,177k | 1,540k | 0.76× |
-| Write 10k messages, TriG | 1,039k | 1,374k | 0.76× |
+| Parse a string, one message, 100k quads | 691k | 551k | 1.25× |
+| Parse a string, 10k messages × 5 quads | 564k | 546k | 1.03× |
+| Parse a string, 10 messages × 10k quads | 732k | 596k | 1.23× |
+| Stream, 64 KiB chunks, 100k quads | 735k | 638k | 1.15× |
+| Stream, 64 KiB chunks, 10k messages | 655k | 511k | 1.28× |
+| Stream, 16-byte chunks, 10k quads | 324k | 198k | 1.64× |
+| Stream, 1-character chunks, 1k quads | 79k | 61k | 1.29× |
+| Write one message, 100k quads, N-Quads | 1,342k | 1,352k | 0.99× |
+| Write one message, 100k quads, TriG | 1,079k | 1,281k | 0.84× |
+| Write 10k messages, N-Quads | 1,103k | 689k | 1.60× |
+| Write 10k messages, TriG | 829k | 595k | 1.39× |
 
-- **Streaming is where this package is ahead**: 1.15× to 1.8×, most for tiny chunks. The N3.js lexer works incrementally; by its
+- **Streaming is where this package is furthest ahead**: 1.15× to 1.64×, most for tiny chunks. The N3.js lexer works incrementally; by its
   documentation, rdf-parser-ts runs its parser over every complete statement prefix of the buffered input. I did not profile it to confirm the cause.
-- **Parsing a whole string is faster with rdf-parser-ts** (0.85× to 0.91× for many messages or large ones, parity for one message): `parseMessages` is
-  N3.js with an extra directive, so it is bounded by the speed of N3.js, which rdf-parser-ts also beats on ordinary documents (by 1.2×).
-- **Writing**: on par for one large message; rdf-writer-ts is faster for many small messages (0.76×; measured before this package moved to one N3.js writer for the whole log).
+- **Parsing a whole string** is faster here too (1.03× for many small messages, 1.23× to 1.25× for large ones): `parseMessages` is
+  N3.js with an extra directive, and N3.js itself is also ahead of rdf-parser-ts on an ordinary document (1.07×).
+- **Writing**: on par for one large N-Quads message (0.99×); rdf-writer-ts is faster for one large TriG message (0.84×); this package is faster for
+  many small messages (1.4× to 1.6×).
 - **Memory**: both stay flat while streaming 100k messages (17 MB): the heap grows by 0.12 MB here and
   0.08 MB with rdf-parser-ts.
 
 Beyond speed, the choice is mostly about the ecosystem. Choose n3.js-messages if you already use N3.js (one parser and one set of syntax quirks, `n3` as a
-shared peer dependency, Node.js 18+, messages as plain `Quad[]`, and a writer that starts every message from a clean state). Choose rdf-parser-ts and rdf-writer-ts if you do not need N3.js, or if parsing whole
-documents and writing many tiny messages are your bottleneck (they need Node.js 22+ and use `rdf-data-factory` by default).
+shared peer dependency, Node.js 18+, messages as plain `Quad[]`, and a writer that starts every message from a clean state). Choose rdf-parser-ts and rdf-writer-ts if you do not need N3.js, or if writing
+large TriG messages is your bottleneck (they need Node.js 22+ and use `rdf-data-factory` by default).
 These are one machine's numbers from a single process: run `npm run perf` on yours; method and caveats are in [perf/README.md](perf/README.md).
 
 ## Development
