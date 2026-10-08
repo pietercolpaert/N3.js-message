@@ -1,6 +1,6 @@
 {
   "name": "n3.js-messages",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "RDF Messages (message-delimited Turtle, TriG, N-Triples and N-Quads) for N3.js: message-aware parser, streaming parser and writer.",
   "author": "Pieter Colpaert",
   "license": "MIT",
@@ -62,9 +62,9 @@
     "spec:update": "node scripts/update-spec.js"
   },
   "devDependencies": {
-    "@babel/cli": "^7.29.7",
-    "@babel/core": "^7.29.7",
-    "@babel/preset-env": "^7.29.7",
+    "@babel/cli": "^8.0.6",
+    "@babel/core": "^8.0.7",
+    "@babel/preset-env": "^8.0.7",
     "@types/n3": "^1.26.4",
     "@types/node": "^26.6.4",
     "babel-jest": "^30.5.2",
