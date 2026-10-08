@@ -57,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         # The minimum of `engines`, the active LTS lines, and the latest release
-        node-version: [18.x, 20.x, 22.x, 24.x]
+        node-version: [20.x, 22.x, 24.x]
         include:
           - node-version: latest
             experimental: true
